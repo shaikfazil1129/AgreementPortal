@@ -1,0 +1,29 @@
+﻿@model AgreementPortal.Models.LoginViewModel
+
+@{
+    ViewData["Title"] = "Login";
+}
+
+<h2>Login</h2>
+
+<form asp-action="Login" method="post">
+    <div>
+        <label asp-for="Name"></label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+
+    <div>
+        <label asp-for="Password"></label>
+        <input asp-for="Password" type="password" class="form-control" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <br />
+    <button type="submit" class="btn btn-primary">Login</button>
+
+    @if (ViewBag.ErrorMessage != null)
+    {
+        <div class="text-danger mt-2">@ViewBag.ErrorMessage</div>
+    }
+</form>

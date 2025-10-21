@@ -1,0 +1,8 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h2>Welcome, @ViewBag.Username!</h2>
+<p>Your Role ID: @ViewBag.RoleId</p>
+
+<a asp-controller="Account" asp-action="Logout" class="btn btn-secondary">Logout</a>
