@@ -46,12 +46,14 @@ namespace AgreementPortal.Controllers
 
                 if (reader.Read())
                 {
+                    int userId = Convert.ToInt32(reader["Id"]);
                     string username = reader["Name"].ToString();
                     int roleId = Convert.ToInt32(reader["Role_Id"]);
 
                     // Create user claims
                     var claims = new List<Claim>
                     {
+                        new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                         new Claim(ClaimTypes.Name, username),
                         new Claim("RoleId", roleId.ToString())
                     };

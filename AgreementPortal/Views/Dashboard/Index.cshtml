@@ -1,8 +1,308 @@
-﻿@{
-    ViewData["Title"] = "Dashboard";
+﻿@model List<AgreementPortal.Models.Agreement>
+@{
+    var roleId = ViewBag.RoleId?.ToString();
+    var username = ViewBag.Username;
 }
 
-<h2>Welcome, @ViewBag.Username!</h2>
-<p>Your Role ID: @ViewBag.RoleId</p>
+<h3>Welcome, @username</h3>
+
+<div class="navbar">
+    @if (roleId == "1")
+    {
+        <div class="card">Set Up: @Model.Count(a => a.Status == "SetUp")</div>
+        <div class="card">Ready to Process: @Model.Count(a => a.Status == "ReadyToProcess")</div>
+    }
+    else if (roleId == "2")
+    {
+        <div class="card">Review: @Model.Count(a => a.Status == "Review")</div>
+    }
+    else if (roleId == "3")
+    {
+        <div class="card">Sign Off: @Model.Count(a => a.Status == "SignOff")</div>
+    }
+</div>
 
 <a asp-controller="Account" asp-action="Logout" class="btn btn-secondary">Logout</a>
+
+<div class="filter-container">
+    <select id="statusFilter">
+        <option value="">All</option>
+        @if (roleId == "1")
+        {
+            <option value="SetUp">SetUp</option>
+            <option value="ReadyToProcess">ReadyToProcess</option>
+        }
+        else if (roleId == "2")
+        {
+            <option value="Review">Review</option>
+        }
+        else if (roleId == "3")
+        {
+            <option value="SignOff">SignOff</option>
+        }
+    </select>
+
+    <select id="sortFilter">
+        <option value="">Sort By</option>
+        <option value="endDate">Near to expiry</option>
+        <option value="createdDate">Recently Created</option>
+    </select>
+
+    <button id="retrieveBtn">Retrieve</button>
+    <button id="clearBtn">Clear</button>
+</div>
+
+
+<hr />
+
+<div class="actions" style="text-align: right;">
+    @if (roleId == "1")
+    {
+        <button id="submitBtn" disabled>Submit</button>
+        <button id="processBtn" disabled>Process</button>
+    }
+    else if (roleId == "2")
+    {
+        <button id="reviewBtn" disabled>Review</button>
+        <button id="revokeBtn" disabled>Revoke</button>
+    }
+    else if (roleId == "3")
+    {
+        <button id="signoffBtn" disabled>SignOff</button>
+        <button id="revokeBtn" disabled>Revoke</button>
+    }
+</div>
+
+<table border="1" width="100%" id="agreementTable">
+    <thead>
+        <tr>
+            <th><input type="checkbox" id="selectAll" /></th>
+            <th>Agreement Num</th>
+            <th>Status</th>
+            <th>Created Date</th>
+            <th>End Date</th>
+            <th>Comments</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var a in Model)
+        {
+            <tr>
+                <td><input type="checkbox" class="selectRow" data-id="@a.Id" data-status="@a.Status" /></td>
+                <td>@a.Agreement_Num</td>
+                <td>@a.Status</td>
+                <td>@a.Created_Date</td>
+                <td>@a.End_Date</td>
+                <td>@a.Comments</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@* @section Scripts {
+    <script>
+        const roleId = '@roleId';
+
+        // Enable buttons on checkbox click
+        const checkboxes = document.querySelectorAll(".selectRow");
+        const submitBtn = document.getElementById("submitBtn");
+        const processBtn = document.getElementById("processBtn");
+        const reviewBtn = document.getElementById("reviewBtn");
+        const revokeBtn = document.getElementById("revokeBtn");
+        const signoffBtn = document.getElementById("signoffBtn");
+
+        document.querySelectorAll(".selectRow").forEach(chk => {
+            chk.addEventListener("change", function () {
+                let selected = [...document.querySelectorAll(".selectRow:checked")];
+                if (selected.length === 0) {
+                    disableAllButtons();
+                } else {
+                    enableRoleButtons(selected);
+                }
+            });
+        });
+
+        function disableAllButtons() {
+            document.querySelectorAll("button").forEach(b => {
+                if (b.id.includes("Btn")) b.disabled = true;
+            });
+        }
+
+        function enableRoleButtons(selected) {
+            if (roleId === "1") {
+                let hasSetUp = selected.some(s => s.dataset.status === "SetUp");
+                let hasReady = selected.some(s => s.dataset.status === "ReadyToProcess");
+                submitBtn.disabled = !hasSetUp;
+                processBtn.disabled = !hasReady;
+            } else if (roleId === "2" || roleId === "3") {
+                document.querySelectorAll("#reviewBtn, #revokeBtn, #signoffBtn")
+                    .forEach(b => b && (b.disabled = false));
+            }
+        }
+
+        async function updateStatus(actionType) {
+            let selectedIds = [...document.querySelectorAll(".selectRow:checked")].map(x => x.dataset.id);
+
+            const res = await fetch("/Dashboard/UpdateStatus", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ AgreementIds: selectedIds, RoleId: parseInt(roleId), ActionType: actionType })
+            });
+
+            const data = await res.json();
+            if (data.success) location.reload();
+        }
+
+        if (submitBtn) submitBtn.onclick = () => updateStatus("submit");
+        if (processBtn) processBtn.onclick = () => updateStatus("process");
+        if (reviewBtn) reviewBtn.onclick = () => updateStatus("review");
+        if (revokeBtn) revokeBtn.onclick = () => updateStatus("revoke");
+        if (signoffBtn) signoffBtn.onclick = () => updateStatus("signoff");
+    </script>
+} *@
+
+@section Scripts {
+    <script>
+        const roleId = '@roleId';
+
+        // Cache buttons and filters
+        const submitBtn = document.getElementById("submitBtn");
+        const processBtn = document.getElementById("processBtn");
+        const reviewBtn = document.getElementById("reviewBtn");
+        const revokeBtn = document.getElementById("revokeBtn");
+        const signoffBtn = document.getElementById("signoffBtn");
+        const retrieveBtn = document.getElementById("retrieveBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const statusFilter = document.getElementById("statusFilter");
+        const sortFilter = document.getElementById("sortFilter");
+        const tableBody = document.querySelector("#agreementTable tbody");
+
+        // Enable/disable action buttons based on checkbox status selection
+        function updateButtonStates() {
+            let selected = [...document.querySelectorAll(".selectRow:checked")];
+            if (selected.length === 0) {
+                disableAllButtons();
+                return;
+            }
+
+            if (roleId === "1") { // Analyst
+                let hasSetUp = selected.some(s => s.dataset.status === "SetUp");
+                let hasReady = selected.some(s => s.dataset.status === "ReadyToProcess");
+                submitBtn.disabled = !hasSetUp;
+                processBtn.disabled = !hasReady;
+            }
+            else if (roleId === "2") { // Manager
+                reviewBtn.disabled = false;
+                revokeBtn.disabled = false;
+            }
+            else if (roleId === "3") { // COE
+                signoffBtn.disabled = false;
+                revokeBtn.disabled = false;
+            }
+        }
+
+        function disableAllButtons() {
+            [submitBtn, processBtn, reviewBtn, revokeBtn, signoffBtn].forEach(b => {
+                if (b) b.disabled = true;
+            });
+        }
+
+        // Handle checkbox changes
+        function attachCheckboxListeners() {
+            document.querySelectorAll(".selectRow").forEach(chk => {
+                chk.addEventListener("change", updateButtonStates);
+            });
+            document.getElementById("selectAll").addEventListener("change", function () {
+                let checked = this.checked;
+                document.querySelectorAll(".selectRow").forEach(chk => {
+                    chk.checked = checked;
+                });
+                updateButtonStates();
+            });
+        }
+
+        // Initial disable all buttons
+        disableAllButtons();
+
+        attachCheckboxListeners();
+
+        // Function to fetch filtered & sorted data
+        async function fetchData() {
+            const status = statusFilter.value;
+            const sort = sortFilter.value;
+
+            const query = new URLSearchParams({ status, sort, roleId });
+
+            const res = await fetch('/Dashboard/GetFilteredAgreements?' + query.toString());
+            const data = await res.json();
+
+            renderTable(data);
+        }
+
+        // Render table rows
+        function renderTable(agreements) {
+            tableBody.innerHTML = "";
+            agreements.forEach(a => {
+                const tr = document.createElement("tr");
+
+                tr.innerHTML = `
+                    <td><input type="checkbox" class="selectRow" data-id="${a.id}" data-status="${a.status}" /></td>
+                    <td>${a.agreement_Num}</td>
+                    <td>${a.status}</td>
+                    <td>${new Date(a.created_Date).toLocaleDateString()}</td>
+                    <td>${a.end_Date ? new Date(a.end_Date).toLocaleDateString() : ''}</td>
+                    <td>${a.comments}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+            disableAllButtons();
+            attachCheckboxListeners();
+        }
+
+        // Retrieve button click
+        retrieveBtn.onclick = () => {
+            fetchData();
+        };
+
+        // Clear button click — reset filters & fetch all
+        clearBtn.onclick = () => {
+            statusFilter.value = "";
+            sortFilter.value = "";
+            fetchData();
+        };
+
+        // Action buttons click handlers
+        async function updateStatus(actionType) {
+            let selectedIds = [...document.querySelectorAll(".selectRow:checked")].map(x => x.dataset.id);
+
+            if (selectedIds.length === 0) {
+                alert("Please select at least one agreement.");
+                return;
+            }
+
+            const res = await fetch("/Dashboard/UpdateStatus", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ AgreementIds: selectedIds, RoleId: parseInt(roleId), ActionType: actionType })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert("Status updated successfully!");
+                fetchData(); // Refresh data
+            } else {
+                alert("Failed to update status.");
+            }
+        }
+
+        if (submitBtn) submitBtn.onclick = () => updateStatus("submit");
+        if (processBtn) processBtn.onclick = () => updateStatus("process");
+        if (reviewBtn) reviewBtn.onclick = () => updateStatus("review");
+        if (revokeBtn) revokeBtn.onclick = () => updateStatus("revoke");
+        if (signoffBtn) signoffBtn.onclick = () => updateStatus("signoff");
+
+        // Initial load
+        fetchData();
+    </script>
+}
+
